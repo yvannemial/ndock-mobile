@@ -1,5 +1,4 @@
-﻿using System;
-using System.Text.Json.Serialization;
+﻿using System.Text.Json.Serialization;
 
 namespace Mobile.Models
 {
@@ -9,19 +8,22 @@ namespace Mobile.Models
         public int Id { get; set; }
 
         [JsonPropertyName("first_name")]
-        public string FirstName { get; set; }
+        public required string FirstName { get; set; }
 
         [JsonPropertyName("last_name")]
-        public string LastName { get; set; }
+        public required string LastName { get; set; }
 
         [JsonPropertyName("email")]
-        public string Email { get; set; }
+        public required string Email { get; set; }
+        
+        [JsonPropertyName("password")]
+        public string? Password { get; set; }
 
         [JsonPropertyName("phone_number")]
-        public string PhoneNumber { get; set; }
+        public required string PhoneNumber { get; set; }
 
         [JsonPropertyName("address")]
-        public string Address { get; set; }
+        public string? Address { get; set; }
 
         [JsonPropertyName("created_at")]
         public DateTime CreatedAt { get; set; }

@@ -2,6 +2,35 @@
 
 <ContentView xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-             x:Class="Mobile.Views.RestaurantItemView">
-    
+             x:Class="Mobile.Views.RestaurantItemView"
+             xmlns:viewmodels="clr-namespace:Mobile.ViewModels"
+             xmlns:models="clr-namespace:Mobile.Models"
+             x:DataType="models:Restaurant">
+    <Border Stroke="{StaticResource Gray100}" BackgroundColor="White"
+            StrokeShape="RoundRectangle 15" Padding="0" Margin="0,0,0,15">
+        <Border.GestureRecognizers>
+            <TapGestureRecognizer
+                Command="{Binding Source={RelativeSource AncestorType={x:Type viewmodels:MainViewModel}}, Path=RestaurantSelectedCommand}"
+                CommandParameter="{Binding}" />
+        </Border.GestureRecognizers>
+        <VerticalStackLayout>
+            <!-- Restaurant Image -->
+            <Grid>
+                <Image Source="{Binding BannerUrl}" Aspect="AspectFill" HeightRequest="150" />
+            </Grid>
+
+            <!-- Restaurant Info -->
+            <VerticalStackLayout Padding="16,12">
+                <Label Text="{Binding Name}" FontAttributes="Bold" FontSize="16" />
+                <Grid ColumnDefinitions="Auto,Auto,Auto" Margin="0,6,0,0">
+                    <StackLayout Grid.Column="1" Orientation="Horizontal" Spacing="6">
+                        <Image Source="location_icon.png" WidthRequest="16"
+                               HeightRequest="16" VerticalOptions="Center" />
+                        <Label Text="{Binding ShortAddress}" FontSize="12"
+                               TextColor="#666666" VerticalOptions="Center" />
+                    </StackLayout>
+                </Grid>
+            </VerticalStackLayout>
+        </VerticalStackLayout>
+    </Border>
 </ContentView>

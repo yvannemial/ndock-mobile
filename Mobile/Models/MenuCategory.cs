@@ -1,5 +1,4 @@
-﻿using System;
-using System.Text.Json.Serialization;
+﻿using System.Text.Json.Serialization;
 
 namespace Mobile.Models
 {
@@ -7,6 +6,7 @@ namespace Mobile.Models
     {
         private int _id;
         private string _name;
+        private string _image_url;
         private DateTime _createdAt;
         private DateTime _updatedAt;
 
@@ -67,8 +67,19 @@ namespace Mobile.Models
             }
         }
 
-        // UI helper property (not in the schema)
-        [JsonIgnore]
-        public string ImageSource => $"{Name?.ToLower()}_icon.png";
+        [JsonPropertyName("image_url")]
+        public string ImageSource
+        {
+            get => _image_url;
+            set
+            {
+                if (_image_url != value)
+                {
+                    _image_url = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
     }
 }

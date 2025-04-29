@@ -1,5 +1,4 @@
-﻿using System;
-using System.Text.Json.Serialization;
+﻿using System.Text.Json.Serialization;
 
 namespace Mobile.Models
 {
@@ -7,15 +6,18 @@ namespace Mobile.Models
     {
         private int _id;
         private int _restaurantId;
-        private int _categoryId;
+        private List<int> _categoryIds;
         private string _name;
         private float _price;
+        private float? _average_rating;
         private string _description;
         private int _preparationTime;
-        private string _imageUrl;
+        private string? _imageUrl;
         private DateTime _createdAt;
         private DateTime _updatedAt;
-        private MenuCategory _category;
+        private List<MenuCategory> _categories;
+        private Restaurant? _restaurant;
+        private List<Supplement> _supplements;
 
         [JsonPropertyName("id")]
         public int Id
@@ -45,15 +47,15 @@ namespace Mobile.Models
             }
         }
 
-        [JsonPropertyName("category_id")]
-        public int CategoryId
+        [JsonPropertyName("category_ids")]
+        public List<int> CategoryIds
         {
-            get => _categoryId;
+            get => _categoryIds;
             set
             {
-                if (_categoryId != value)
+                if (_categoryIds != value)
                 {
-                    _categoryId = value;
+                    _categoryIds = value;
                     OnPropertyChanged();
                 }
             }
@@ -79,7 +81,7 @@ namespace Mobile.Models
             get => _price;
             set
             {
-                if (_price != value)
+                if (Math.Abs(_price - value) > float.Epsilon)
                 {
                     _price = value;
                     OnPropertyChanged();
@@ -116,7 +118,7 @@ namespace Mobile.Models
         }
 
         [JsonPropertyName("image_url")]
-        public string ImageUrl
+        public string? ImageUrl
         {
             get => _imageUrl;
             set
@@ -157,18 +159,67 @@ namespace Mobile.Models
             }
         }
 
-        [JsonPropertyName("category")]
-        public MenuCategory Category
+        [JsonPropertyName("categories")]
+        public List<MenuCategory> Categories
         {
-            get => _category;
+            get => _categories;
             set
             {
-                if (_category != value)
+                if (_categories != value)
                 {
-                    _category = value;
+                    _categories = value;
                     OnPropertyChanged();
                 }
             }
+        }
+
+        [JsonPropertyName("average_rating")]
+        public float? AverageRating
+        {
+            get => _average_rating;
+            set
+            {
+                if (_average_rating != value)
+                {
+                    _average_rating = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        [JsonPropertyName("restaurant")]
+        public Restaurant? Restaurant
+        {
+            get => _restaurant;
+            set
+            {
+                if (_restaurant != value)
+                {
+                    _restaurant = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        [JsonPropertyName("supplements")]
+        public List<Supplement> Supplements
+        {
+            get => _supplements;
+            set
+            {
+                if (_supplements != value)
+                {
+                    _supplements = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        public Menu()
+        {
+            _categoryIds = new List<int>();
+            _categories = new List<MenuCategory>();
+            _supplements = new List<Supplement>();
         }
     }
 }

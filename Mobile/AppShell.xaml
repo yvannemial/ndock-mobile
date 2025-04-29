@@ -3,13 +3,31 @@
     x:Class="Mobile.AppShell"
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-    xmlns:local="clr-namespace:Mobile"
-    Shell.FlyoutBehavior="Flyout"
-    Title="Mobile">
+    xmlns:pages="clr-namespace:Mobile.Pages"
+    Shell.FlyoutBehavior="Disabled">
 
-    <ShellContent
-        Title="Home"
-        ContentTemplate="{DataTemplate local:MainPage}"
-        Route="MainPage" />
+    <Shell.Resources>
+        <Style TargetType="TabBar">
+            <Setter Property="Shell.TabBarBackgroundColor" Value="{StaticResource Primary}" />
+            <Setter Property="Shell.TabBarForegroundColor" Value="White" />
+            <Setter Property="Shell.TabBarTitleColor" Value="White" />
+            <Setter Property="Shell.TabBarUnselectedColor" Value="{StaticResource Gray100}" />
+        </Style>
+    </Shell.Resources>
 
+    <!-- Bottom Tabs -->
+    <TabBar>
+        <!-- Home Tab -->
+        <Tab Title="Home" Icon="home_icon.png">
+            <ShellContent ContentTemplate="{DataTemplate pages:MainPage}" />
+        </Tab>
+        <!-- Favorites Tab -->
+        <!-- <Tab Title="Favorites" Icon="favorites_icon.png"> -->
+        <!--     <ShellContent ContentTemplate="{DataTemplate pages:FavoritesPage}" /> -->
+        <!-- </Tab> -->
+        <!-- Profile Tab -->
+        <Tab Title="Profile" Icon="profile_icon.png">
+            <ShellContent ContentTemplate="{DataTemplate pages:ProfilePage}" />
+        </Tab>
+    </TabBar>
 </Shell>

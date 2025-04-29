@@ -1,33 +1,35 @@
 ﻿using Mobile.Models;
+using Mobile.Services;
 using System.Collections.ObjectModel;
-using System.Windows.Input;
+using System.Diagnostics;
 
 namespace Mobile.ViewModels
 {
     public class RestaurantViewModel : ObservableModel
     {
-        private Restaurant _restaurant;
-        private ObservableCollection<Menu> _menuItems;
-        private bool _isLoading;
+        private readonly ApiService _apiService;
+        private bool _isLoading = false;
+        private string _errorMessage = String.Empty;
 
-        public RestaurantViewModel(Restaurant restaurant)
+        public Location RestaurantLatitudeLongitude =>
+            new Location(Restaurant?.Latitude ?? 0, Restaurant?.Longitude ?? 0);
+
+        public RestaurantViewModel(Restaurant restaurant, ApiService apiService)
         {
-            _restaurant = restaurant;
-            _menuItems = new ObservableCollection<Menu>();
-            LoadMenuItems();
+            Restaurant = restaurant;
+            _apiService = apiService;
+            MenuItems = new ObservableCollection<Menu>();
+
+            // Load the menu items when the view model is created
+            LoadMenuItemsAsync();
         }
 
-        public string Name => _restaurant?.Name;
-        public string Address => _restaurant?.Address;
-        public string ImageUrl => _restaurant?.BannerUrl;
-        public string Categories => "Restaurant, Fast Food, Burger"; // This could be fetched from API
-        public float Rating => 4.5f; // Replace with actual rating when available
-        public string ReviewCount => "1.5k"; // Replace with actual review count when available
-        public string DeliveryTime => "30"; // In minutes, could be part of restaurant data
-        public string PriceRange => "$$"; // This could be calculated based on menu prices
-        
-        public ObservableCollection<Menu> MenuItems => _menuItems;
-        
+        public Restaurant Restaurant { get; }
+
+        public string ImageUrl => Restaurant.BannerUrl;
+
+        public ObservableCollection<Menu> MenuItems { get; }
+
         public bool IsLoading
         {
             get => _isLoading;
@@ -41,35 +43,66 @@ namespace Mobile.ViewModels
             }
         }
 
-        private async void LoadMenuItems()
+        public string ErrorMessage
         {
-            IsLoading = true;
-            
-            // Example data - replace with actual API call
-            await Task.Delay(500); // Simulate network delay
-            
-            MenuItems.Add(new Menu 
-            { 
-                Name = "Cheeseburger", 
-                Description = "Classic beef patty with cheese, lettuce, tomato and special sauce",
-                Price = 8.99m,
-                OriginalPrice = 10.99m,
-                HasDiscount = true,
-                ImageUrl = "https://example.com/cheeseburger.jpg"
-            });
-            
-            MenuItems.Add(new Menu 
-            { 
-                Name = "Chicken Wings", 
-                Description = "Crispy wings with choice of sauce",
-                Price = 7.99m,
-                HasDiscount = false,
-                ImageUrl = "https://example.com/wings.jpg"
-            });
-            
-            // Add more menu items as needed
-            
-            IsLoading = false;
+            get => _errorMessage;
+            set
+            {
+                if (_errorMessage != value)
+                {
+                    _errorMessage = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        private async void LoadMenuItemsAsync()
+        {
+            if (Restaurant.Id <= 0)
+            {
+                ErrorMessage = "Invalid restaurant information";
+                return;
+            }
+
+            try
+            {
+                IsLoading = true;
+                ErrorMessage = string.Empty;
+
+                // Call the API service to get the menus for this restaurant
+                var menus = await _apiService.GetRestaurantMenusAsync(Restaurant.Id);
+
+                if (menus != null)
+                {
+                    // Clear any existing items and add the new ones
+                    MenuItems.Clear();
+                    foreach (Menu menu in menus)
+                    {
+                        MenuItems.Add(menu);
+                    }
+                }
+                else
+                {
+                    // Handle the case where no menus are returned
+                    ErrorMessage = "No menu items available for this restaurant";
+                }
+            }
+            catch (Exception ex)
+            {
+                // Handle any errors that might occur
+                ErrorMessage = $"Error loading menu items: {ex.Message}";
+                Debug.WriteLine($"Error in LoadMenuItemsAsync: {ex}");
+            }
+            finally
+            {
+                IsLoading = false;
+            }
+        }
+
+        // Method to manually refresh the menu items
+        public async Task RefreshMenuItemsAsync()
+        {
+            await Task.Run(LoadMenuItemsAsync);
         }
     }
 }

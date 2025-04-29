@@ -1,5 +1,4 @@
-﻿using System;
-using System.Text.Json.Serialization;
+﻿using System.Text.Json.Serialization;
 
 namespace Mobile.Models
 {
@@ -175,11 +174,7 @@ namespace Mobile.Models
         // UI helper properties (not in the schema but useful for display)
         [JsonIgnore]
         public string ShortAddress => Address?.Split(',')?.FirstOrDefault()?.Trim() ?? "";
-        
-        [JsonIgnore]
-        public string RatingDisplay => "4.5 (1.5k)"; // This would come from MenuRating in a real app
-        
-        [JsonIgnore]
-        public string DeliveryTime => "25 - 35 mins"; // This would come from EstimateResponse in a real app
+
+        public Location LatitudeLongitude => new Location(Latitude, Longitude);
     }
 }

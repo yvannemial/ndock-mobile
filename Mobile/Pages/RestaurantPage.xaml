@@ -2,8 +2,140 @@
 
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-             x:Class="Mobile.Pages.RestaurantPage">
-    <ContentPage.Content>
-        
-    </ContentPage.Content>
+             xmlns:viewmodels="clr-namespace:Mobile.ViewModels"
+             xmlns:models="clr-namespace:Mobile.Models"
+             x:Class="Mobile.Pages.RestaurantPage"
+             x:DataType="viewmodels:RestaurantViewModel"
+             BackgroundColor="{StaticResource White}"
+             Title="{Binding Restaurant.Name}">
+    <Grid RowDefinitions="Auto,*">
+        <!-- Header with restaurant image -->
+        <Grid Grid.Row="0" HeightRequest="224">
+            <Image x:Name="RestaurantImage"
+                   Aspect="AspectFill"
+                   Source="{Binding ImageUrl}" />
+
+            <!-- Open Map button -->
+            <!-- <Button Text="Open Map" -->
+            <!--         ContentLayout="Left,5" -->
+            <!--         BackgroundColor="White" -->
+            <!--         TextColor="Black" -->
+            <!--         FontSize="14" -->
+            <!--         CornerRadius="16" -->
+            <!--         Padding="10,5" -->
+            <!--         HorizontalOptions="Start" -->
+            <!--         VerticalOptions="End" -->
+            <!--         Margin="16,0,0,16" -->
+            <!--         Clicked="OpenMapButton_Clicked"> -->
+            <!-- </Button> -->
+        </Grid>
+
+        <!-- Restaurant details and menu -->
+        <ScrollView Grid.Row="1">
+            <StackLayout Spacing="0">
+                <!-- Restaurant info section -->
+                <StackLayout Padding="16,16,16,0" Spacing="8">
+                    <Label
+                        Text="{Binding Restaurant.Name}"
+                        FontSize="24"
+                        FontAttributes="Bold" />
+
+                    <Label Text="{Binding Restaurant.Description}"
+                           TextColor="{StaticResource Gray600}"
+                           FontSize="14" />
+
+                    <StackLayout Orientation="Horizontal" Spacing="4">
+                        <Image Source="location_icon.png" WidthRequest="16"
+                               HeightRequest="16" VerticalOptions="Center" />
+                        <Label Text="{Binding Restaurant.ShortAddress}" FontSize="12"
+                               TextColor="{StaticResource Gray600}" VerticalOptions="Center" />
+                    </StackLayout>
+
+                </StackLayout>
+
+                <!-- Menu section -->
+                <BoxView HeightRequest="10"
+                         BackgroundColor="#F5F5F5"
+                         Margin="0,15,0,0" />
+
+                <Label Text="Menu"
+                       FontSize="16"
+                       FontAttributes="Bold"
+                       Margin="16,15,16,10" />
+
+                <CollectionView x:Name="MenuItemsCollection"
+                                ItemsSource="{Binding MenuItems}"
+                                Margin="0,0,0,16">
+                    <CollectionView.ItemTemplate>
+                        <DataTemplate x:DataType="models:Menu">
+                            <Grid Padding="16,10" ColumnDefinitions="Auto,*,Auto">
+                                <Grid.GestureRecognizers>
+                                    <TapGestureRecognizer Tapped="MenuItem_Tapped" CommandParameter="{Binding .}" />
+                                </Grid.GestureRecognizers>
+
+                                <Border Grid.Column="0"
+                                        HeightRequest="80"
+                                        WidthRequest="80"
+                                        StrokeShape="RoundRectangle 10"
+                                        Padding="0">
+                                    <Image Source="{Binding ImageUrl}"
+                                           Aspect="AspectFill" />
+                                </Border>
+
+                                <StackLayout Grid.Column="1"
+                                             VerticalOptions="Center"
+                                             Margin="15,0,0,0">
+                                    <Label Text="{Binding Name}"
+                                           FontSize="16"
+                                           FontAttributes="Bold" />
+                                    <Label Text="{Binding Description}"
+                                           FontSize="14"
+                                           TextColor="Gray"
+                                           MaxLines="2"
+                                           LineBreakMode="TailTruncation" />
+                                    <Label Text="{Binding Price, StringFormat='{0} XAF'}"
+                                           FontSize="16"
+                                           FontAttributes="Bold" />
+                                </StackLayout>
+
+                                <!-- <StackLayout Grid.Column="2" VerticalOptions="Center"> -->
+                                <!--     <Button Text="Add" -->
+                                <!--             TextColor="#D32F2F" -->
+                                <!--             BackgroundColor="Transparent" -->
+                                <!--             BorderColor="#D32F2F" -->
+                                <!--             BorderWidth="1" -->
+                                <!--             CornerRadius="16" -->
+                                <!--             Padding="15,5" -->
+                                <!--             CommandParameter="{Binding .}" -->
+                                <!--             Clicked="AddMenuItem_Clicked" /> -->
+                                <!-- -->
+                                <!--     <ImageButton Source="favorite_outline.png" -->
+                                <!--                  HeightRequest="24" -->
+                                <!--                  WidthRequest="24" -->
+                                <!--                  HorizontalOptions="Start" -->
+                                <!--                  BackgroundColor="Transparent" -->
+                                <!--                  Margin="5,5,0,0" -->
+                                <!--                  CommandParameter="{Binding .}" -->
+                                <!--                  Clicked="FavoriteMenuItem_Clicked" /> -->
+                                <!-- </StackLayout> -->
+                            </Grid>
+                        </DataTemplate>
+                    </CollectionView.ItemTemplate>
+                </CollectionView>
+
+                <!-- Loading indicator -->
+                <ActivityIndicator IsRunning="{Binding IsLoading}"
+                                   IsVisible="{Binding IsLoading}"
+                                   Color="{StaticResource Primary}"
+                                   Margin="0,10,0,16" />
+
+                <Label Text="{Binding ErrorMessage}"
+                       IsVisible="{Binding ErrorMessage.Length}"
+                       TextColor="{StaticResource PrimaryDark}"
+                       HorizontalOptions="Center"
+                       FontSize="14"
+                       Margin="16,0,16,16" />
+            </StackLayout>
+        </ScrollView>
+    </Grid>
 </ContentPage>

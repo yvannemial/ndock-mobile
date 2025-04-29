@@ -1,43 +1,42 @@
-﻿using System.Collections.ObjectModel;
-using System.ComponentModel;
-using System.Runtime.CompilerServices;
+﻿using Mobile.Models;
+using Mobile.Pages;
+using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.Windows.Input;
+using Mobile.Services;
 
 namespace Mobile.ViewModels
 {
-    public class MainViewModel : INotifyPropertyChanged
+    public class MainViewModel : ObservableModel
     {
-        private string _userLocation = "Surakarta, ID";
-        private string _searchQuery;
-        private ObservableCollection<FoodCategoryModel> _foodCategories;
-        private ObservableCollection<RestaurantModel> _restaurants;
+        private string _userLocation = "Unknown Location";
+        private string _searchQuery = "";
+        private ObservableCollection<MenuCategory> _foodCategories = [];
+        private ObservableCollection<Restaurant> _restaurants = [];
+        private ObservableCollection<Menu> _mostRatedMenus = [];
+        private bool _isLoading = false;
+        private string _errorMessage = "";
 
         public MainViewModel()
         {
             // Initialize commands
-            NotificationCommand = new Command(OnNotificationClicked);
             ViewAllRestaurantsCommand = new Command(OnViewAllRestaurantsClicked);
-            OrderCommand = new Command<RestaurantModel>(OnOrderClicked);
-            InfoCommand = new Command<RestaurantModel>(OnInfoClicked);
-            FavoriteCommand = new Command<RestaurantModel>(OnFavoriteClicked);
-            ProfileCommand = new Command<RestaurantModel>(OnProfileClicked);
+            RefreshCommand = new Command(async void () => await LoadDataAsync());
+
+            // Add new command for restaurant selection
+            RestaurantSelectedCommand = new Command<Restaurant>(OnRestaurantSelected);
+
+            UserService.Instance.UserChanged +=
+                async (sender, user) => UserLocation = user?.Address ?? "Unknown Location";
 
             // Load data
-            LoadFoodCategories();
-            LoadRestaurants();
+            Task.Run(async () => await LoadDataAsync());
         }
 
         public string UserLocation
         {
             get => _userLocation;
-            set
-            {
-                if (_userLocation != value)
-                {
-                    _userLocation = value;
-                    OnPropertyChanged();
-                }
-            }
+            set => SetProperty(ref _userLocation, value);
         }
 
         public string SearchQuery
@@ -49,12 +48,11 @@ namespace Mobile.ViewModels
                 {
                     _searchQuery = value;
                     OnPropertyChanged();
-                    // Optionally trigger search functionality
                 }
             }
         }
 
-        public ObservableCollection<FoodCategoryModel> FoodCategories
+        public ObservableCollection<MenuCategory> FoodCategories
         {
             get => _foodCategories;
             set
@@ -67,7 +65,7 @@ namespace Mobile.ViewModels
             }
         }
 
-        public ObservableCollection<RestaurantModel> Restaurants
+        public ObservableCollection<Restaurant> Restaurants
         {
             get => _restaurants;
             set
@@ -80,116 +78,132 @@ namespace Mobile.ViewModels
             }
         }
 
-        public ICommand NotificationCommand { get; }
-        public ICommand ViewAllRestaurantsCommand { get; }
-        public ICommand OrderCommand { get; }
-        public ICommand InfoCommand { get; }
-        public ICommand FavoriteCommand { get; }
-        public ICommand ProfileCommand { get; }
-
-        private void LoadFoodCategories()
+        public ObservableCollection<Menu> MostRatedMenus
         {
-            // In a real app, this would be loaded from the API
-            FoodCategories = new ObservableCollection<FoodCategoryModel>
+            get => _mostRatedMenus;
+            set
             {
-                new FoodCategoryModel { Id = 1, Name = "Pizza", ImageSource = "pizza_icon.png" },
-                new FoodCategoryModel { Id = 2, Name = "Noodle", ImageSource = "noodle_icon.png" },
-                new FoodCategoryModel { Id = 3, Name = "Burger", ImageSource = "burger_icon.png" },
-                new FoodCategoryModel { Id = 4, Name = "Rice", ImageSource = "rice_icon.png" },
-                new FoodCategoryModel { Id = 5, Name = "Salad", ImageSource = "salad_icon.png" }
-            };
-        }
-
-        private void LoadRestaurants()
-        {
-            // In a real app, this would be loaded from the API
-            Restaurants = new ObservableCollection<RestaurantModel>
-            {
-                new RestaurantModel
+                if (_mostRatedMenus != value)
                 {
-                    Id = 1,
-                    Name = "Burger Bansor Surakarta",
-                    Address = "885 Ave, Surakarta, ID",
-                    ShortAddress = "885 Ave",
-                    Rating = 4.5f,
-                    ReviewCount = 1500,
-                    DeliveryTime = "25 - 35 mins",
-                    BannerUrl = "burger_restaurant.jpg"
-                },
-                new RestaurantModel
-                {
-                    Id = 2,
-                    Name = "Fresh Salad Bar",
-                    Address = "762 St, Surakarta, ID",
-                    ShortAddress = "762 St",
-                    Rating = 4.7f,
-                    ReviewCount = 2300,
-                    DeliveryTime = "15 - 25 mins",
-                    BannerUrl = "salad_restaurant.jpg"
+                    _mostRatedMenus = value;
+                    OnPropertyChanged();
                 }
-            };
+            }
         }
 
-        private void OnNotificationClicked()
+
+        public bool IsLoading
         {
-            // Handle notification click
+            get => _isLoading;
+            set
+            {
+                if (_isLoading != value)
+                {
+                    _isLoading = value;
+                    OnPropertyChanged();
+                }
+            }
         }
+
+        public string ErrorMessage
+        {
+            get => _errorMessage;
+            set
+            {
+                if (_errorMessage != value)
+                {
+                    _errorMessage = value;
+                    OnPropertyChanged();
+                    OnPropertyChanged(nameof(HasError));
+                }
+            }
+        }
+
+        public bool HasError => !string.IsNullOrEmpty(ErrorMessage);
+
+        public ICommand ViewAllRestaurantsCommand { get; }
+        public ICommand RefreshCommand { get; }
+
+        public ICommand RestaurantSelectedCommand { get; }
+
+        private async Task LoadDataAsync()
+        {
+            IsLoading = true;
+            ErrorMessage = string.Empty;
+
+            try
+            {
+                await Task.WhenAll(
+                    LoadFoodCategoriesAsync(),
+                    LoadRestaurantsAsync(),
+                    LoadMostRatedMenusAsync()
+                );
+            }
+            catch (Exception ex)
+            {
+                ErrorMessage = "Failed to load data. Please check your connection and try again.";
+            }
+            finally
+            {
+                IsLoading = false;
+            }
+        }
+
+        private async Task LoadFoodCategoriesAsync()
+        {
+            try
+            {
+                var categories = await ApiService.Instance.GetMenuCategoriesAsync();
+                if (categories != null)
+                {
+                    FoodCategories = new ObservableCollection<MenuCategory>(categories);
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error loading food categories: {ex.Message}");
+            }
+        }
+
+        private async Task LoadRestaurantsAsync()
+        {
+            try
+            {
+                var restaurants = await ApiService.Instance.GetRestaurantsAsync();
+                if (restaurants != null)
+                {
+                    Restaurants = new(restaurants);
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error loading restaurants: {ex.Message}");
+            }
+        }
+
+        private async Task LoadMostRatedMenusAsync()
+        {
+            try
+            {
+                var menus = await ApiService.Instance.GetMostRatedMenusAsync(limit: 6);
+                MostRatedMenus = new ObservableCollection<Menu>(menus ?? []);
+            }
+            catch (Exception ex)
+            {
+                ErrorMessage = $"Error loading most rated menus: {ex.Message}";
+            }
+        }
+
 
         private void OnViewAllRestaurantsClicked()
         {
             // Navigate to all restaurants view
         }
 
-        private void OnOrderClicked(RestaurantModel restaurant)
+        private async void OnRestaurantSelected(Restaurant restaurant)
         {
-            // Navigate to order page for the selected restaurant
+            // Navigate to the RestaurantPage, passing the selected restaurant
+            await Shell.Current.Navigation.PushAsync(new RestaurantPage(restaurant));
         }
-
-        private void OnInfoClicked(RestaurantModel restaurant)
-        {
-            // Show restaurant info
-        }
-
-        private void OnFavoriteClicked(RestaurantModel restaurant)
-        {
-            // Toggle favorite status
-        }
-
-        private void OnProfileClicked(RestaurantModel restaurant)
-        {
-            // Navigate to profile page
-        }
-
-        #region INotifyPropertyChanged
-
-        public event PropertyChangedEventHandler PropertyChanged;
-
-        protected virtual void OnPropertyChanged([CallerMemberName] string propertyName = null)
-        {
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-        }
-
-        #endregion
-    }
-
-    public class FoodCategoryModel
-    {
-        public int Id { get; set; }
-        public string Name { get; set; }
-        public string ImageSource { get; set; }
-    }
-
-    public class RestaurantModel
-    {
-        public int Id { get; set; }
-        public string Name { get; set; }
-        public string Address { get; set; }
-        public string ShortAddress { get; set; }
-        public float Rating { get; set; }
-        public int ReviewCount { get; set; }
-        public string RatingDisplay => $"{Rating} ({ReviewCount / 1000f:0.0}k)";
-        public string DeliveryTime { get; set; }
-        public string LogoUrl { get; set; }
-        public string BannerUrl { get; set; }
     }
 }

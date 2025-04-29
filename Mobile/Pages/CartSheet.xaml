@@ -1,0 +1,116 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+
+<the49:BottomSheet xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+                   xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+                   xmlns:the49="https://schemas.the49.com/dotnet/2023/maui"
+                   xmlns:models="clr-namespace:Mobile.Models"
+                   xmlns:viewmodels="clr-namespace:Mobile.ViewModels"
+                   xmlns:toolkit="http://schemas.microsoft.com/dotnet/2022/maui/toolkit"
+                   x:Class="Mobile.Pages.CartSheet"
+                   HasHandle="True"
+                   IsCancelable="False"
+                   x:DataType="viewmodels:CheckoutViewModel">
+
+    <the49:BottomSheet.Resources>
+        <ResourceDictionary>
+            <toolkit:IsNotEqualConverter x:Key="IsNotEqualConverter" />
+            <toolkit:InvertedBoolConverter x:Key="InvertedBoolConverter" />
+        </ResourceDictionary>
+    </the49:BottomSheet.Resources>
+
+    <the49:BottomSheet.Detents>
+        <the49:ContentDetent />
+        <the49:AnchorDetent Anchor="{x:Reference Divider}" />
+    </the49:BottomSheet.Detents>
+
+    <ScrollView>
+        <VerticalStackLayout Spacing="8" Padding="16,24">
+            <!-- Order Items -->
+            <CollectionView ItemsSource="{Binding CartItems}" SelectionMode="None">
+                <CollectionView.ItemTemplate>
+                    <DataTemplate x:DataType="models:OrderItem">
+                        <Grid ColumnDefinitions="Auto,*,Auto" RowDefinitions="Auto,Auto" RowSpacing="0" Padding="12">
+                            <!-- Item Image -->
+                            <Border Grid.RowSpan="2" HeightRequest="60" WidthRequest="60" Margin="0,0,8,0"
+                                    StrokeShape="RoundRectangle 8">
+                                <Image Source="{Binding Menu.ImageUrl}" Aspect="AspectFill" />
+                            </Border>
+
+                            <!-- Item Name -->
+                            <Label Grid.Column="1" Text="{Binding Menu.Name}" FontSize="16" FontAttributes="Bold"
+                                   TextColor="Black" />
+                            
+                            <!-- Quantity -->
+                            <Label Grid.Column="2" Grid.Row="0" Text="{Binding Menu.Price, StringFormat='{0} XAF'}" FontSize="16"
+                                   FontAttributes="Bold"
+                                   HorizontalTextAlignment="Center"
+                                   VerticalOptions="Center"
+                                   HorizontalOptions="Center"/>
+                            
+                            <!-- Supplements -->
+                            <CollectionView Grid.Column="1" Grid.Row="3" Grid.ColumnSpan="2"
+                                           ItemsSource="{Binding Supplements}"
+                                           IsVisible="{Binding Supplements.Count, Converter={StaticResource IsNotEqualConverter}, ConverterParameter=0}"
+                                           Margin="0,8,0,0">
+                                <CollectionView.ItemTemplate>
+                                    <DataTemplate x:DataType="models:OrderItemSupplement">
+                                        <Grid ColumnDefinitions="*,Auto" Margin="0,2">
+                                            <Label Text="{Binding Supplement.Name}"
+                                                   FontAttributes="Bold"
+                                                   FontSize="12" 
+                                                   TextColor="{StaticResource Gray600}"/>
+                                            <HorizontalStackLayout Grid.Column="1" Spacing="4">
+                                                <Label Text="x" 
+                                                       FontSize="12" 
+                                                       TextColor="{StaticResource Gray600}"/>
+                                                <Label Text="{Binding Quantity}" 
+                                                       FontSize="12" 
+                                                       TextColor="{StaticResource Gray600}"/>
+                                                <Label Text="-" 
+                                                       FontSize="12" 
+                                                       TextColor="{StaticResource Gray600}"/>
+                                                <Label Text="{Binding Supplement.Price, StringFormat='{0:F2} XAF'}" 
+                                                       FontSize="12" 
+                                                       TextColor="{StaticResource Gray600}"/>
+                                            </HorizontalStackLayout>
+                                        </Grid>
+                                    </DataTemplate>
+                                </CollectionView.ItemTemplate>
+                            </CollectionView>
+                        </Grid>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+
+            <BoxView x:Name="Divider" />
+
+            <!-- Summary -->
+            <VerticalStackLayout Spacing="10" Margin="8,0,8,12">
+                <BoxView HeightRequest="1" BackgroundColor="LightGray" />
+                <Grid ColumnDefinitions="*,Auto">
+                    <Label Text="Total" FontSize="16" FontAttributes="Bold" TextColor="Black" />
+                    <Label Text="{Binding Total, StringFormat='{0:F2} XAF'}" FontSize="16" FontAttributes="Bold"
+                           TextColor="Black" Grid.Column="1" />
+                </Grid>
+                <Grid ColumnDefinitions="*,Auto">
+                    <Label Text="Estimated Delivery Time" FontSize="16" FontAttributes="Bold" TextColor="Black" />
+                    <Grid Grid.Column="1">
+                        <ActivityIndicator IsRunning="{Binding IsLoadingEstimate}" 
+                                           IsVisible="{Binding IsLoadingEstimate}"
+                                           HeightRequest="20" WidthRequest="20"
+                                           Color="Black" />
+                        <Label Text="{Binding EstimatedDeliveryTime}" 
+                               FontSize="16" 
+                               FontAttributes="Bold"
+                               TextColor="Black" 
+                               IsVisible="{Binding IsLoadingEstimate, Converter={StaticResource InvertedBoolConverter}}" />
+                    </Grid>
+                </Grid>
+            </VerticalStackLayout>
+
+            <!-- Checkout Button -->
+            <Button Text="Checkout" BackgroundColor="Black" TextColor="White" FontSize="16" CornerRadius="24"
+                    HeightRequest="50" Command="{Binding CheckoutCommand}" />
+        </VerticalStackLayout>
+    </ScrollView>
+</the49:BottomSheet>

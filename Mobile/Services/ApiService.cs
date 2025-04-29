@@ -1,28 +1,28 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Net.Http;
-using System.Net.Http.Headers;
+﻿using System.Net.Http.Headers;
 using System.Net.Http.Json;
-using System.Threading.Tasks;
-using System.Web;
+using System.Text.Json;
+using Mobile.Models;
 
 namespace Mobile.Services
 {
     public class ApiService
     {
-        private readonly HttpClient _httpClient;
-        private const string ApiBaseUrl = "http://127.0.0.1:8000"; // Replace with your actual API base URL
-        private string _authToken;
+        private static readonly Lazy<ApiService> LazyInstance = new Lazy<ApiService>(() => new ApiService());
 
-        public ApiService()
+        public static ApiService Instance => LazyInstance.Value;
+        
+        private readonly HttpClient _httpClient;
+        private string? _authToken;
+
+        private ApiService()
         {
             _httpClient = new HttpClient();
-            _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+            _httpClient.BaseAddress = new Uri("https://ndock-api.onrender.com/");
         }
 
         public void SetAuthToken(string token, string tokenType = "Bearer")
         {
-            _authToken = token;
+            _authToken = $"{tokenType} {token}";
             _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(tokenType, token);
         }
 
@@ -32,374 +32,341 @@ namespace Mobile.Services
             _httpClient.DefaultRequestHeaders.Authorization = null;
         }
 
-        #region Health Check
-
-        /// <summary>
-        /// Checks if the API service is running and can connect to the database
-        /// </summary>
-        public async Task<HealthCheck> GetHealthCheckAsync()
+        // Health Check
+        public async Task<HealthCheck?> GetHealthCheckAsync()
         {
-            return await GetAsync<HealthCheck>("/health");
+            return await GetAsync<HealthCheck>("health");
         }
 
-        #endregion
-
-        #region Authentication
-
-        /// <summary>
-        /// Authenticates a user and returns a token
-        /// </summary>
-        public async Task<TokenData> LoginAsync(string email, string password)
+        // Authentication Endpoints
+        public async Task<TokenData?> LoginAsync(string email, string password)
         {
-            var loginData = new { email, password };
-            var response = await _httpClient.PostAsJsonAsync($"{ApiBaseUrl}/auth/login", loginData);
-
-            if (response.IsSuccessStatusCode)
+            var loginRequest = new LoginRequest
             {
-                var tokenData = await response.Content.ReadFromJsonAsync<TokenData>();
-                SetAuthToken(tokenData.AccessToken, tokenData.TokenType);
-                return tokenData;
-            }
-
-            if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
-            {
-                throw new UnauthorizedAccessException("Invalid email or password");
-            }
-
-            throw new HttpRequestException($"Error: {response.StatusCode}");
-        }
-
-        /// <summary>
-        /// Registers a new user
-        /// </summary>
-        public async Task<User> RegisterAsync(User user)
-        {
-            var response = await _httpClient.PostAsJsonAsync($"{ApiBaseUrl}/auth/register", user);
-
-            if (response.IsSuccessStatusCode)
-            {
-                return await response.Content.ReadFromJsonAsync<User>();
-            }
-
-            if (response.StatusCode == System.Net.HttpStatusCode.BadRequest)
-            {
-                throw new InvalidOperationException("Email already registered");
-            }
-
-            throw new HttpRequestException($"Error: {response.StatusCode}");
-        }
-
-        #endregion
-
-        #region Restaurants
-
-        /// <summary>
-        /// Gets a list of all restaurants
-        /// </summary>
-        public async Task<List<Restaurant>> GetRestaurantsAsync(int skip = 0, int limit = 100)
-        {
-            var queryString = BuildQueryString(new Dictionary<string, string>
-            {
-                { "skip", skip.ToString() },
-                { "limit", limit.ToString() }
-            });
-
-            return await GetAsync<List<Restaurant>>($"/restaurants{queryString}");
-        }
-
-        /// <summary>
-        /// Gets a specific restaurant by ID
-        /// </summary>
-        public async Task<Restaurant> GetRestaurantAsync(int restaurantId)
-        {
-            return await GetAsync<Restaurant>($"/restaurants/{restaurantId}");
-        }
-
-        /// <summary>
-        /// Gets all menus for a specific restaurant
-        /// </summary>
-        public async Task<List<Menu>> GetRestaurantMenusAsync(int restaurantId, int skip = 0, int limit = 100)
-        {
-            var queryString = BuildQueryString(new Dictionary<string, string>
-            {
-                { "skip", skip.ToString() },
-                { "limit", limit.ToString() }
-            });
-
-            return await GetAsync<List<Menu>>($"/restaurants/{restaurantId}/menus{queryString}");
-        }
-
-        /// <summary>
-        /// Gets all orders for a specific restaurant
-        /// </summary>
-        public async Task<List<Order>> GetRestaurantOrdersAsync(int restaurantId, int skip = 0, int limit = 100)
-        {
-            var queryString = BuildQueryString(new Dictionary<string, string>
-            {
-                { "skip", skip.ToString() },
-                { "limit", limit.ToString() }
-            });
-
-            return await GetAsync<List<Order>>($"/restaurants/{restaurantId}/orders{queryString}");
-        }
-
-        #endregion
-
-        #region Menus
-
-        /// <summary>
-        /// Gets a list of all menu items
-        /// </summary>
-        public async Task<List<Menu>> GetMenusAsync(int? restaurantId = null, int skip = 0, int limit = 100)
-        {
-            var queryParams = new Dictionary<string, string>
-            {
-                { "skip", skip.ToString() },
-                { "limit", limit.ToString() }
+                Email = email,
+                Password = password
             };
 
-            if (restaurantId.HasValue)
-            {
-                queryParams.Add("restaurant_id", restaurantId.Value.ToString());
-            }
-
-            var queryString = BuildQueryString(queryParams);
-            return await GetAsync<List<Menu>>($"/menus{queryString}");
+            return await PostAsync<LoginRequest, TokenData>("auth/login", loginRequest);
         }
 
-        /// <summary>
-        /// Gets quick service menu items with preparation time less than specified value
-        /// </summary>
-        public async Task<List<Menu>> GetQuickServiceMenusAsync(
-            int maxPreparationTime = 30, 
-            int? restaurantId = null, 
-            int skip = 0, 
-            int limit = 100)
+        public async Task<TokenData?> RegisterAsync(RegisterRequest registerRequest)
         {
-            var queryParams = new Dictionary<string, string>
-            {
-                { "max_preparation_time", maxPreparationTime.ToString() },
-                { "skip", skip.ToString() },
-                { "limit", limit.ToString() }
-            };
-
-            if (restaurantId.HasValue)
-            {
-                queryParams.Add("restaurant_id", restaurantId.Value.ToString());
-            }
-
-            var queryString = BuildQueryString(queryParams);
-            return await GetAsync<List<Menu>>($"/menus/quick-service{queryString}");
+            return await PostAsync<RegisterRequest, TokenData>("auth/register", registerRequest);
         }
 
-        /// <summary>
-        /// Gets a specific menu item by ID
-        /// </summary>
-        public async Task<Menu> GetMenuAsync(int menuId)
+        public async Task<User?> GetCurrentUserAsync()
         {
-            return await GetAsync<Menu>($"/menus/{menuId}");
+            return await GetAsync<User>("auth/me");
         }
 
-        /// <summary>
-        /// Gets all comments for a specific menu item
-        /// </summary>
-        public async Task<List<Comment>> GetMenuCommentsAsync(
-            int menuId, 
-            int? minRating = null, 
-            int skip = 0, 
-            int limit = 100)
+        // Restaurants Endpoints
+        public async Task<List<Restaurant>?> GetRestaurantsAsync(int skip = 0, int limit = 100)
         {
-            var queryParams = new Dictionary<string, string>
-            {
-                { "skip", skip.ToString() },
-                { "limit", limit.ToString() }
-            };
-
-            if (minRating.HasValue)
-            {
-                queryParams.Add("min_rating", minRating.Value.ToString());
-            }
-
-            var queryString = BuildQueryString(queryParams);
-            return await GetAsync<List<Comment>>($"/menus/{menuId}/comments{queryString}");
-        }
-
-        /// <summary>
-        /// Gets the average rating and total number of reviews for a specific menu item
-        /// </summary>
-        public async Task<MenuRating> GetMenuRatingAsync(int menuId)
-        {
-            return await GetAsync<MenuRating>($"/menus/{menuId}/rating");
-        }
-
-        #endregion
-
-        #region Orders
-
-        /// <summary>
-        /// Gets a specific order by ID
-        /// </summary>
-        public async Task<Order> GetOrderAsync(int orderId)
-        {
-            return await GetAsync<Order>($"/orders/{orderId}");
-        }
-
-        /// <summary>
-        /// Gets all orders for a specific user
-        /// </summary>
-        public async Task<List<Order>> GetUserOrdersAsync(int userId, int skip = 0, int limit = 100)
-        {
-            var queryString = BuildQueryString(new Dictionary<string, string>
+            var query = BuildQueryString(new Dictionary<string, string>
             {
                 { "skip", skip.ToString() },
                 { "limit", limit.ToString() }
             });
 
-            return await GetAsync<List<Order>>($"/users/{userId}/orders{queryString}");
+            return await GetAsync<List<Restaurant>>($"restaurants{query}");
         }
 
-        #endregion
-
-        #region Comments
-
-        /// <summary>
-        /// Gets a list of all comments
-        /// </summary>
-        public async Task<List<Comment>> GetCommentsAsync(
-            int? menuId = null, 
-            int? clientId = null, 
-            int? rating = null, 
-            int skip = 0, 
-            int limit = 100)
+        public async Task<Restaurant?> GetRestaurantAsync(int restaurantId)
         {
-            var queryParams = new Dictionary<string, string>
-            {
-                { "skip", skip.ToString() },
-                { "limit", limit.ToString() }
-            };
-
-            if (menuId.HasValue)
-            {
-                queryParams.Add("menu_id", menuId.Value.ToString());
-            }
-
-            if (clientId.HasValue)
-            {
-                queryParams.Add("client_id", clientId.Value.ToString());
-            }
-
-            if (rating.HasValue)
-            {
-                queryParams.Add("rating", rating.Value.ToString());
-            }
-
-            var queryString = BuildQueryString(queryParams);
-            return await GetAsync<List<Comment>>($"/comments{queryString}");
+            return await GetAsync<Restaurant>($"restaurants/{restaurantId}");
         }
 
-        /// <summary>
-        /// Gets a specific comment by ID
-        /// </summary>
-        public async Task<Comment> GetCommentAsync(int commentId)
+        public async Task<Restaurant?> CreateRestaurantAsync(Restaurant restaurant)
         {
-            return await GetAsync<Comment>($"/comments/{commentId}");
+            return await PostAsync<Restaurant, Restaurant>("restaurants", restaurant);
         }
 
-        #endregion
-
-        #region Menu Categories
-
-        /// <summary>
-        /// Gets a list of all menu categories
-        /// </summary>
-        public async Task<List<MenuCategory>> GetMenuCategoriesAsync(int skip = 0, int limit = 100)
+        public async Task<Restaurant?> UpdateRestaurantAsync(int restaurantId, Restaurant restaurant)
         {
-            var queryString = BuildQueryString(new Dictionary<string, string>
+            return await PutAsync<Restaurant, Restaurant>($"restaurants/{restaurantId}", restaurant);
+        }
+
+        public async Task DeleteRestaurantAsync(int restaurantId)
+        {
+            await DeleteAsync($"restaurants/{restaurantId}");
+        }
+
+        // Restaurant Menus Endpoint
+        public async Task<List<Menu>?> GetRestaurantMenusAsync(int restaurantId, int skip = 0, int limit = 100)
+        {
+            var query = BuildQueryString(new Dictionary<string, string>
             {
                 { "skip", skip.ToString() },
                 { "limit", limit.ToString() }
             });
 
-            return await GetAsync<List<MenuCategory>>($"/menu-categories{queryString}");
+            return await GetAsync<List<Menu>>($"restaurants/{restaurantId}/menus{query}");
         }
 
-        /// <summary>
-        /// Gets a specific menu category by ID
-        /// </summary>
-        public async Task<MenuCategory> GetMenuCategoryAsync(int categoryId)
+        // Menus Endpoints
+        public async Task<List<Menu>?> GetMenusAsync(int skip = 0, int limit = 100)
         {
-            return await GetAsync<MenuCategory>($"/menu-categories/{categoryId}");
-        }
-
-        /// <summary>
-        /// Gets all menus for a specific category
-        /// </summary>
-        public async Task<List<Menu>> GetMenuCategoryMenusAsync(int categoryId, int skip = 0, int limit = 100)
-        {
-            var queryString = BuildQueryString(new Dictionary<string, string>
+            var query = BuildQueryString(new Dictionary<string, string>
             {
                 { "skip", skip.ToString() },
                 { "limit", limit.ToString() }
             });
 
-            return await GetAsync<List<Menu>>($"/menu-categories/{categoryId}/menus{queryString}");
+            return await GetAsync<List<Menu>>($"menus{query}");
         }
 
-        #endregion
-
-        #region Helper Methods
-
-        private async Task<T> GetAsync<T>(string endpoint)
+        public async Task<Menu?> GetMenuAsync(int menuId)
         {
-            var response = await _httpClient.GetAsync($"{ApiBaseUrl}{endpoint}");
-            
-            if (response.IsSuccessStatusCode)
-            {
-                return await response.Content.ReadFromJsonAsync<T>();
-            }
-            
-            if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
-            {
-                throw new KeyNotFoundException($"Resource not found at {endpoint}");
-            }
-            
-            if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
-            {
-                throw new UnauthorizedAccessException("Authentication required");
-            }
-            
-            throw new HttpRequestException($"Error: {response.StatusCode}");
+            return await GetAsync<Menu>($"menus/{menuId}");
         }
 
-        private string BuildQueryString(Dictionary<string, string> parameters)
+        public async Task<Menu?> CreateMenuAsync(Menu menu)
         {
-            if (parameters == null || parameters.Count == 0)
+            return await PostAsync<Menu, Menu>("menus", menu);
+        }
+
+        public async Task<Menu?> UpdateMenuAsync(int menuId, Menu menu)
+        {
+            return await PutAsync<Menu, Menu>($"menus/{menuId}", menu);
+        }
+
+        public async Task DeleteMenuAsync(int menuId)
+        {
+            await DeleteAsync($"menus/{menuId}");
+        }
+
+        public async Task<List<Menu>?> GetMostRatedMenusAsync(int skip = 0, int limit = 10)
+        {
+            var query = BuildQueryString(new Dictionary<string, string>
             {
+                { "skip", skip.ToString() },
+                { "limit", limit.ToString() }
+            });
+
+            return await GetAsync<List<Menu>>($"menus/most-rated{query}");
+        }
+
+        // Menu Categories Endpoints
+        public async Task<List<MenuCategory>?> GetMenuCategoriesAsync(int skip = 0, int limit = 100)
+        {
+            var query = BuildQueryString(new Dictionary<string, string>
+            {
+                { "skip", skip.ToString() },
+                { "limit", limit.ToString() }
+            });
+
+            return await GetAsync<List<MenuCategory>>($"menu-categories{query}");
+        }
+
+        public async Task<MenuCategory?> CreateMenuCategoryAsync(MenuCategory menuCategory)
+        {
+            return await PostAsync<MenuCategory, MenuCategory>("menu-categories", menuCategory);
+        }
+
+        public async Task<MenuCategory?> GetMenuCategoryAsync(int categoryId)
+        {
+            return await GetAsync<MenuCategory>($"menu-categories/{categoryId}");
+        }
+
+        public async Task<MenuCategory?> UpdateMenuCategoryAsync(int categoryId, MenuCategory menuCategory)
+        {
+            return await PutAsync<MenuCategory, MenuCategory>($"menu-categories/{categoryId}", menuCategory);
+        }
+
+        public async Task DeleteMenuCategoryAsync(int categoryId)
+        {
+            await DeleteAsync($"menu-categories/{categoryId}");
+        }
+
+        // Supplements Endpoints
+        public async Task<List<Supplement>?> GetSupplementsAsync(int skip = 0, int limit = 100)
+        {
+            var query = BuildQueryString(new Dictionary<string, string>
+            {
+                { "skip", skip.ToString() },
+                { "limit", limit.ToString() }
+            });
+
+            return await GetAsync<List<Supplement>>($"supplements{query}");
+        }
+
+        public async Task<Supplement?> CreateSupplementAsync(Supplement supplement)
+        {
+            return await PostAsync<Supplement, Supplement>("supplements", supplement);
+        }
+
+        public async Task<Supplement?> GetSupplementAsync(int supplementId)
+        {
+            return await GetAsync<Supplement>($"supplements/{supplementId}");
+        }
+
+        public async Task<Supplement?> UpdateSupplementAsync(int supplementId, Supplement supplement)
+        {
+            return await PutAsync<Supplement, Supplement>($"supplements/{supplementId}", supplement);
+        }
+
+        public async Task DeleteSupplementAsync(int supplementId)
+        {
+            await DeleteAsync($"supplements/{supplementId}");
+        }
+
+        // Comments Endpoints
+        public async Task<List<Comment>?> GetCommentsAsync(int skip = 0, int limit = 100)
+        {
+            var query = BuildQueryString(new Dictionary<string, string>
+            {
+                { "skip", skip.ToString() },
+                { "limit", limit.ToString() }
+            });
+
+            return await GetAsync<List<Comment>>($"comments{query}");
+        }
+
+        public async Task<Comment?> CreateCommentAsync(CreateCommentRequest request)
+        {
+            return await PostAsync<CreateCommentRequest, Comment>("comments", request);
+        }
+
+        public async Task<Comment?> GetCommentAsync(int commentId)
+        {
+            return await GetAsync<Comment>($"comments/{commentId}");
+        }
+
+        public async Task<Comment?> UpdateCommentAsync(int commentId, CreateCommentRequest request)
+        {
+            return await PutAsync<CreateCommentRequest, Comment>($"comments/{commentId}", request);
+        }
+
+        public async Task DeleteCommentAsync(int commentId)
+        {
+            await DeleteAsync($"comments/{commentId}");
+        }
+
+        public async Task<List<Comment>?> GetMenuCommentsAsync(int menuId, int skip = 0, int limit = 100)
+        {
+            var query = BuildQueryString(new Dictionary<string, string>
+            {
+                { "skip", skip.ToString() },
+                { "limit", limit.ToString() }
+            });
+
+            return await GetAsync<List<Comment>>($"menus/{menuId}/comments{query}");
+        }
+
+        // Orders Endpoints
+        public async Task<List<Order>?> GetOrdersAsync(int skip = 0, int limit = 100)
+        {
+            var query = BuildQueryString(new Dictionary<string, string>
+            {
+                { "skip", skip.ToString() },
+                { "limit", limit.ToString() }
+            });
+
+            return await GetAsync<List<Order>>($"orders{query}");
+        }
+
+        public async Task<Order?> CreateOrderAsync(CreateOrderRequest request)
+        {
+            return await PostAsync<CreateOrderRequest, Order>("orders", request);
+        }
+
+        public async Task<Order?> GetOrderAsync(int orderId)
+        {
+            return await GetAsync<Order>($"orders/{orderId}");
+        }
+
+        public async Task<Order?> UpdateOrderAsync(int orderId, CreateOrderRequest request)
+        {
+            return await PutAsync<CreateOrderRequest, Order>($"orders/{orderId}", request);
+        }
+
+        public async Task DeleteOrderAsync(int orderId)
+        {
+            await DeleteAsync($"orders/{orderId}");
+        }
+
+        // Get orders for a specific user
+        public async Task<List<Order>?> GetUserOrdersAsync(int userId, int skip = 0, int limit = 100)
+        {
+            var query = BuildQueryString(new Dictionary<string, string>
+            {
+                { "skip", skip.ToString() },
+                { "limit", limit.ToString() }
+            });
+
+            return await GetAsync<List<Order>>($"users/{userId}/orders{query}");
+        }
+
+        // Get orders for a specific restaurant
+        public async Task<List<Order>?> GetRestaurantOrdersAsync(int restaurantId, int skip = 0, int limit = 100)
+        {
+            var query = BuildQueryString(new Dictionary<string, string>
+            {
+                { "skip", skip.ToString() },
+                { "limit", limit.ToString() }
+            });
+
+            return await GetAsync<List<Order>>($"restaurants/{restaurantId}/orders{query}");
+        }
+
+        // Delivery Estimate
+        public async Task<EstimateResponse?> GetDeliveryEstimateAsync(DeliveryEstimateRequest request)
+        {
+            return await PostAsync<DeliveryEstimateRequest, EstimateResponse>("delivery-estimate", request);
+        }
+
+        // Menu Ratings
+        public async Task<MenuRating?> GetMenuRatingAsync(int menuId)
+        {
+            return await GetAsync<MenuRating>($"menus/{menuId}/rating");
+        }
+
+        // Base Methods for HTTP Requests
+        private async Task<T?> GetAsync<T>(string endpoint)
+        {
+            var response = await _httpClient.GetAsync(endpoint);
+            return await ParseResponse<T>(response);
+        }
+
+        private async Task<TResponse?> PostAsync<TRequest, TResponse>(string endpoint, TRequest data)
+        {
+            var response = await _httpClient.PostAsJsonAsync(endpoint, data);
+            return await ParseResponse<TResponse>(response);
+        }
+
+        private async Task<TResponse?> PutAsync<TRequest, TResponse>(string endpoint, TRequest data)
+        {
+            var response = await _httpClient.PutAsJsonAsync(endpoint, data);
+            return await ParseResponse<TResponse>(response);
+        }
+
+        private async Task DeleteAsync(string endpoint)
+        {
+            await _httpClient.DeleteAsync(endpoint);
+        }
+
+        private static async Task<T?> ParseResponse<T>(HttpResponseMessage response)
+        {
+            if (!response.IsSuccessStatusCode)
+            {
+                // Handle error response and throw as needed.
+                return default;
+            }
+
+            var content = await response.Content.ReadAsStringAsync();
+            return JsonSerializer.Deserialize<T>(content, new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            });
+        }
+
+        private string BuildQueryString(Dictionary<string, string>? parameters)
+        {
+            if (parameters == null || !parameters.Any())
                 return string.Empty;
-            }
 
-            var queryBuilder = new System.Text.StringBuilder("?");
-            bool first = true;
-
-            foreach (var parameter in parameters)
-            {
-                if (!first)
-                {
-                    queryBuilder.Append("&");
-                }
-
-                queryBuilder.Append(HttpUtility.UrlEncode(parameter.Key));
-                queryBuilder.Append("=");
-                queryBuilder.Append(HttpUtility.UrlEncode(parameter.Value));
-
-                first = false;
-            }
-
-            return queryBuilder.ToString();
+            return "?" + string.Join("&", parameters.Select(p => $"{p.Key}={Uri.EscapeDataString(p.Value)}"));
         }
-
-        #endregion
     }
-
-    // All models should be defined in a separate file
 }

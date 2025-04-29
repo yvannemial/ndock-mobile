@@ -1,0 +1,227 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:models="clr-namespace:Mobile.Models"
+             xmlns:pages="clr-namespace:Mobile.Pages"
+             xmlns:toolkit="http://schemas.microsoft.com/dotnet/2022/maui/toolkit"
+             x:Class="Mobile.Pages.DishPage"
+             x:DataType="models:Menu"
+             Title="{Binding Name}">
+
+	<ContentPage.Resources>
+		<ResourceDictionary>
+			<toolkit:IsNotNullConverter x:Key="IsNotNullConverter" />
+		</ResourceDictionary>
+	</ContentPage.Resources>
+
+	<Grid RowDefinitions="Auto,*">
+
+		<!-- Main Content -->
+		<ScrollView Grid.Row="1">
+			<VerticalStackLayout Spacing="16" Padding="20,0,20,20">
+				<!-- Category and Rating -->
+				<CollectionView ItemsSource="{Binding Categories}"
+                                HorizontalScrollBarVisibility="Never"
+                                ItemsLayout="HorizontalList">
+					<CollectionView.ItemTemplate>
+						<DataTemplate x:DataType="models:MenuCategory">
+							<Grid ColumnDefinitions="Auto,Auto"
+                                  Padding="8,0"
+                                  Margin="0,0,8,0">
+								<Border Grid.Column="0" StrokeShape="RoundRectangle 6">
+									<Image Source="{Binding ImageSource}"
+                                           WidthRequest="24"
+                                           HeightRequest="24"
+                                           VerticalOptions="Center" />
+								</Border>
+
+								<Label Grid.Column="1"
+                                       Text="{Binding Name}"
+                                       VerticalOptions="Center"
+                                       Margin="5,0,0,0" />
+							</Grid>
+						</DataTemplate>
+					</CollectionView.ItemTemplate>
+				</CollectionView>
+
+				<!-- Dish Image -->
+				<Border StrokeShape="RoundRectangle 20"
+                        Padding="0"
+                        Margin="0,10">
+					<Image Source="{Binding ImageUrl}"
+                           Aspect="AspectFill"
+                           HeightRequest="300" />
+				</Border>
+
+				<!-- Details Section -->
+				<Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto">
+					<Label Grid.Row="0"
+                           Grid.Column="0"
+                           Text="Details"
+                           FontSize="20"
+                           FontAttributes="Bold" />
+
+					<HorizontalStackLayout Grid.Row="0"
+                                           Grid.Column="1"
+                                           VerticalOptions="Center"
+                                           Spacing="16">
+						<HorizontalStackLayout IsVisible="{Binding AverageRating, Converter={StaticResource IsNotNullConverter}}">
+							<Image Source="star_icon.png"
+                                   WidthRequest="16"
+                                   HeightRequest="16"
+                                   VerticalOptions="Center" />
+							<Label Text="{Binding AverageRating}"
+                                   VerticalOptions="Center"
+                                   Margin="5,0,0,0" />
+						</HorizontalStackLayout>
+
+						<HorizontalStackLayout>
+							<Image Source="clock_icon.png"
+                                   WidthRequest="16"
+                                   HeightRequest="16"
+                                   VerticalOptions="Center" />
+							<Label Text="{Binding PreparationTime, StringFormat='{0} min'}"
+                                   VerticalOptions="Center"
+                                   Margin="5,0,0,0" />
+						</HorizontalStackLayout>
+
+						<HorizontalStackLayout>
+							<Image Source="cash_icon.png"
+                                   WidthRequest="16"
+                                   HeightRequest="16"
+                                   VerticalOptions="Center" />
+							<Label Text="{Binding Price, StringFormat='{0} XAF'}"
+                                   VerticalOptions="Center"
+                                   TextColor="{StaticResource Primary}"
+                                   FontAttributes="Bold"
+                                   Margin="5,0,0,0" />
+						</HorizontalStackLayout>
+					</HorizontalStackLayout>
+
+					<Label Grid.Row="1"
+                           Grid.Column="0"
+                           Grid.ColumnSpan="2"
+                           Text="{Binding Description}"
+                           TextColor="{StaticResource Gray600}"
+                           Margin="0,10,0,0" />
+				</Grid>
+
+				<!-- Supplements Section -->
+				<Grid RowDefinitions="Auto,Auto" Margin="0,10,0,0">
+					<Label Grid.Row="0"
+                           Text="Supplements"
+                           FontSize="20"
+                           FontAttributes="Bold"
+                           Margin="0,0,0,10" />
+
+					<CollectionView Grid.Row="1"
+                                   ItemsSource="{Binding Supplements}"
+                                   EmptyView="No supplements available">
+						<CollectionView.ItemTemplate>
+							<DataTemplate x:DataType="models:Supplement">
+								<Grid ColumnDefinitions="Auto,*,Auto,Auto"
+                                      Padding="10"
+                                      Margin="0,5">
+									<Border Grid.Column="0"
+                                            StrokeShape="RoundRectangle 8"
+                                            WidthRequest="50"
+                                            HeightRequest="50"
+                                            Stroke="{StaticResource Gray200}"
+                                            StrokeThickness="1">
+										<Image Source="{Binding ImageUrl}"
+                                               Aspect="AspectFill"
+                                               WidthRequest="50"
+                                               HeightRequest="50" />
+									</Border>
+
+									<VerticalStackLayout Grid.Column="1"
+                                                         Margin="10,0"
+                                                         VerticalOptions="Center">
+										<Label Text="{Binding Name}"
+                                               FontAttributes="Bold" />
+										<Label Text="{Binding Price, StringFormat='{0} XAF'}"
+                                               TextColor="{StaticResource Primary}"
+                                               FontSize="14" />
+									</VerticalStackLayout>
+
+									<HorizontalStackLayout Grid.Column="2"
+                                                           x:Name="QuantityControls"
+                                                           IsVisible="False"
+                                                           Spacing="5">
+										<Button Text="-"
+										        WidthRequest="24"
+										        HeightRequest="24"
+										        CornerRadius="8"
+										        Padding="0"
+										        FontSize="16"
+										        FontAttributes="Bold"
+										        BackgroundColor="{StaticResource Gray200}"
+                                                TextColor="Black"
+                                                Clicked="DecrementSupplementQuantity_Clicked"
+                                                BindingContext="{Binding Id}"
+                                                VerticalOptions="Center" />
+
+										<Label x:Name="QuantityLabel"
+                                               Text="0"
+                                               WidthRequest="40"
+                                               HorizontalTextAlignment="Center"
+                                               VerticalTextAlignment="Center"
+                                               VerticalOptions="Center"
+                                               FontSize="16"
+                                               FontAttributes="Bold" />
+
+										<Button Text="+"
+												WidthRequest="24"
+												HeightRequest="24"
+												CornerRadius="8"
+												Padding="0"
+												FontSize="16"
+												FontAttributes="Bold"
+												BackgroundColor="{StaticResource Gray200}"
+												TextColor="Black"
+												Clicked="IncrementSupplementQuantity_Clicked"
+												BindingContext="{Binding Id}"
+												VerticalOptions="Center" />
+									</HorizontalStackLayout>
+
+									<CheckBox Grid.Column="3"
+                                              VerticalOptions="Center"
+                                              CheckedChanged="OnSupplementCheckChanged"
+                                              Color="{StaticResource Primary}"
+                                              BindingContext="{Binding Id}" />
+								</Grid>
+							</DataTemplate>
+						</CollectionView.ItemTemplate>
+					</CollectionView>
+				</Grid>
+
+				<!-- Total Price Section -->
+				<Grid ColumnDefinitions="*,Auto" Margin="0,15,0,0">
+					<Label Grid.Column="0"
+                           Text="Total Price"
+                           FontSize="18"
+                           FontAttributes="Bold"
+                           VerticalOptions="Center" />
+
+					<Label Grid.Column="1"
+                           x:Name="TotalPriceLabel"
+                           Text="{Binding Price, StringFormat='{0} XAF'}"
+                           FontSize="20"
+                           FontAttributes="Bold"
+                           TextColor="{StaticResource Primary}"
+                           VerticalOptions="Center" />
+				</Grid>
+
+				<!-- Add to Cart Button -->
+				<Button Text="Add to Cart"
+                        BackgroundColor="#222222"
+                        TextColor="White"
+                        CornerRadius="25"
+                        HeightRequest="50"
+                        Margin="0,20,0,0"
+                        Clicked="AddToCartButton_Clicked" />
+			</VerticalStackLayout>
+		</ScrollView>
+	</Grid>
+</ContentPage>
